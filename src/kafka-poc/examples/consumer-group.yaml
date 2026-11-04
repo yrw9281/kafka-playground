@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-demo-consumer
+  namespace: kafka-poc
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kafka-demo-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-demo-consumer
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: consumer
+        image: apache/kafka:3.9.1
+        command:
+        - /bin/bash
+        - -ec
+        - |
+          exec /opt/kafka/bin/kafka-console-consumer.sh \
+            --bootstrap-server kafka:9092 \
+            --topic orders.keyed \
+            --group playground-workers \
+            --from-beginning \
+            --consumer-property "client.id=${HOSTNAME}" \
+            --consumer-property partition.assignment.strategy=org.apache.kafka.clients.consumer.RangeAssignor \
+            --property print.key=true \
+            --property print.partition=true \
+            --property print.offset=true
+        env:
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xms64m -Xmx128m"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 192Mi
+          limits:
+            cpu: 500m
+            memory: 384Mi
